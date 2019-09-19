@@ -1,3 +1,2 @@
-# bios611-homework-fall-2019-gr8lawrence
-Whatever
-# bios611-projects-fall-2019-gr8lawrence
+# Tianyi's BIOS 611 Projects 
+This repository contains all contents of BIOS 611: Intro to Data Sciences projects of Tianyi Liu. Please contact the author for permissions to use the materials wherein.
