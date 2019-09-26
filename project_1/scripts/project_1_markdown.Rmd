@@ -1,0 +1,214 @@
+---
+title: "Estimating Average Food Consumption Per Person At The Community Cafe At Urban Ministries of Durham"
+output: html_document
+---
+<!-- The followings are some specifications for styling and formatting -->
+<style type="text/css">
+
+body{ /* Normal  */
+      font-size: 16px;
+      font-family: "Times New Roman", Times, serif;
+  }
+  
+td {  /* Table  */
+  font-size: 8px;
+}
+h1.title {
+  font-size: 38px;
+  color: DarkRed;
+}
+h1 { /* Header 1 */
+  font-size: 28px;
+  color: DarkBlue;
+}
+h2 { /* Header 2 */
+    font-size: 22px;
+  color: DarkBlue;
+}
+h3 { /* Header 3 */
+  font-size: 18px;
+  color: DarkBlue;
+}
+code.r{ /* Code block */
+    font-size: 12px;
+}
+pre { /* Code block - determines code spacing between lines */
+    font-size: 14px;
+}
+</style>
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+```
+
+# Background
+> For every threadbare tee and pair of stained pants, there is an equal number of belted slacks and button-down shirts. _Patrons are of every color and every age, each with a unique set of circumstances that brought them to UMD. It makes no difference why they’re here to the staff and volunteers who have put together enough food to feed 250_. No one will ask questions or make them justify their place in line. --- Elizabeth Shestak, [A Daily Slice of Life at Urban Ministries of Durham](https://www.ourstate.com/a-daily-slice-of-life-at-urban-ministries-of-durham/)
+
+The community cafe at Urban Ministries of Durham (UMD) has long been a place where people under different life circumstances enjoy a free meal with food donated by the local partners and prepared by hardworking staff and volunteers until they are settled for steady jobs or complete drug rehabilitation treatments. As the quote above states, the staff and volunteers put together food enough for feeding 250 each meal. Per the [same source](https://www.ourstate.com/a-daily-slice-of-life-at-urban-ministries-of-durham/), the cafe serves 2 meals on weekdays and 3 on weekends, producing a total of `r (2 * 5 + 3 * 2)*250` meals per week. That's a surprisingly large amount of food to handle. Astoundingly, during the recent fiscal year of 2014-15, UMD kept the cafe running on a $30,000 annual food budget and served over a quarter of a million meals to needy people. 
+
+However, to keep the budgets low and fully utilize the donated food items from the local community, an estimate of how much food a person takes on average per meal might be useful for the cafe to serve the best portions for each meal. To achieve this, we use the data set from UMD and compute the estimate through building a simple linear regression model on the data available. 
+
+# Data Set
+The data set used in this analysis was a record of resource distribution at UMD. It has 79838 entries, each corresponding to the bookkeepping of the distribution of certain resources at a certain check point on a certain day. The data set has 18 different columns, the first with the dates when the distributions were recorded and the rest items being distributed. The columns relevant to our analysis are those titled `Date`, `Food.Provided.for`, and `Food.Pounds`. The latter two stand for the number of people receiving meals and the weight of food in pounds served to those people on the date these numbers were recorded. __Hence, our model will estimate the weight of food a person takes in on average during a day__. Sometimes, multiple lines of entries can correspond to the same date, and multiple data are missing on each column. We will group the data for each date and clean up missing records before proceeding to the main analysis.
+
+# Analysis
+## Reading And Tidying Data
+First, we read the data from the Urban Ministry of Durham and then chop it down to the three variables we selected: `Date`, `Food.Provided.for`, and `Food.Pounds`.
+```{r read_data}
+dat <- as_tibble(read.csv(file = "/Users/gr8lawrence/Desktop/Bios_611/bios611-projects-fall-2019-gr8lawrence/project_1/data/UMD_Services_Provided_20190719.tsv", sep = "\t", header = TRUE))
+dat_food <- dat %>%
+  select(Date, Food.Provided.for, Food.Pounds)
+# print the food data
+head(dat_food)
+```
+Then we tidy the data by setting the dates to the correct formats and removing all rows that contain `NA`.
+```{r tidy_data}
+# correct the date format
+dat_food$Date <- as.Date(dat_food$Date, "%m/%d/%Y")
+# finding the row indexes with missing data
+na_ind <- union(union(which(is.na(dat_food$Food.Provided.for)),
+                which(is.na(dat_food$Food.Pounds))), which(is.na(dat_food$Date)))
+# removing these rows
+dat_food_tidied <- dat_food[-na_ind, ]
+# print the tidied data
+head(dat_food_tidied)
+```
+A word on the quality of the data: a total of `r dim(dat_food)[1] - dim(dat_food_tidied)[1]` rows contain missing entries.
+
+## Cleaning And Summarizing The Data
+We summarize the distributions of daily food consumptions per person and the correlation between the food consumed and the number of people
+
+```{r summary_avg_food_cons}
+avg_food <- dat_food_tidied %>%
+  group_by(Date) %>%
+  summarise(total_food_provided = sum(Food.Pounds),
+            total_person_count = sum(Food.Provided.for),
+            avg_food_consumed = sum(Food.Pounds)/sum(Food.Provided.for)) %>%
+  arrange(desc(avg_food_consumed))
+# remove the rows with na after summarizing
+avg_food <- avg_food[-which(is.na(avg_food$avg_food_consumed)), ]
+# show the top six observations
+head(avg_food)
+```
+Obviously, the first line printed above is an outlier. We go back and check:
+``` {r food_check}
+head(dat_food_tidied[which(dat_food_tidied$Date == as.Date("2018-06-12")), ] %>%
+  arrange(desc(Food.Pounds)))
+```
+The line with `r max(dat_food_tidied$Food.Pounds[which(dat_food_tidied$Date == as.Date("2018-06-12"))])` pounds of food distributed in one day was certainly abnormal, probably due to some typos. To minimally impact the data, we remove the row with the outlier and summarize the data again. 
+We also add the z-score of each day's average food consumption per person and flag the values with an absoulte z-score greater than 2 for data filtering later. For a series of data $x$ the z-score for each member of the series $x_i$ is calculated by \[
+z_i = \frac{x_i - \textrm{mean}(x)}{\textrm{sd}(x)}
+\]
+
+```{r summary_avg_food_2}
+food_pounds_outlier <- max(dat_food_tidied$Food.Pounds[which(dat_food_tidied$Date == as.Date("2018-06-12"))])
+
+avg_food_2 <- dat_food_tidied[-which(dat_food_tidied$Food.Pounds == food_pounds_outlier), ] %>%
+  group_by(Date) %>%
+  summarise(total_food_provided = sum(Food.Pounds),
+            total_person_count = sum(Food.Provided.for),
+            avg_food_consumed = sum(Food.Pounds)/sum(Food.Provided.for)) 
+
+# remove the na rows after summarizing again
+avg_food_2 <- avg_food_2[-which(is.na(avg_food_2$avg_food_consumed)), ]
+
+# flag the extreme average values
+avg_food_2 <- avg_food_2 %>%
+  mutate(avg_z = (avg_food_consumed - mean(avg_food_2$avg_food_consumed))/ sd(avg_food_2$avg_food_consumed),
+         flag_avg = ifelse(abs(avg_z) > 2, "Extreme averages", "Normal averages")) %>%
+  arrange(desc(avg_food_consumed))
+
+# print the revised data set
+head(avg_food_2)
+```
+To inspect whether the data wholly make sense after we remove the aforementioned extreme outlier in the food in pounds distributed per day, we plot the relative distribution in 2D between food consumed in pounds and number of people provided with food each day with a line that shows the average of food consumption per day per person calculated from `avg_food_2` as a reference.
+``` {r correlation_food_people}
+# plot the correlation
+ggplot(avg_food_2, aes(x = total_person_count , y = total_food_provided, col = flag_avg)) + 
+  coord_fixed(ratio = 1/5.25) +
+  geom_point() + 
+  geom_abline(intercept = 0, slope = mean(avg_food_2$avg_food_consumed), col = "red") +
+  labs(x = "Number of People served",
+       y = "Total food distributed in a day (lbs)") +
+  annotate("text", x = 500, y = 6000, size = 4, label = paste("Average = ", signif(mean(avg_food_2$avg_food_consumed)))) +
+  theme_bw() +
+  theme(legend.position = "bottom") +
+  scale_color_discrete(name = "Average food distributed per person")
+```
+
+We certainly see points that lie far away from the diagonal. Any of the following reasons could have caused them:
+
+* Mistakes during data entrances
+* Somebody claimed a lot of food for other family members or friends at the shelter (over-allocation)
+* Limited food for a lot of people (under-allocation)
+* Bad handling food allocation by the cafe staff (both)
+
+But for now we do not know anything special about them. Thus, to minimize the effect of outliers in fitting our models, we remove the records with extreme average values that are 2 standard deviations away from the mean ($|z_i| > 2$), which are the dots marked "Extreme averages" in the above plot. 
+
+``` {r remove_outliers}
+avg_food_3 <- avg_food_2[-which(abs(avg_food_2$avg_z) > 2), ]
+
+# plot the correlation again
+ggplot(avg_food_3, aes(x = total_person_count , y = total_food_provided)) + 
+  coord_fixed(ratio = 1/9.12) +
+  geom_point() + 
+  geom_abline(intercept = 0, slope = mean(avg_food_3$avg_food_consumed), col = "red") +
+  labs(x = "Number of People served",
+       y = "Total food distributed in a day (lbs)") +
+  annotate("text", x = 100, y = 2000, size = 4, label = paste("Average = ", signif(mean(avg_food_3$avg_food_consumed)))) +
+  theme_bw()
+```
+
+As some additional information, we plot the density of the per person food consumpution per day on average:
+``` {r avg_food_density}
+# plot the distribution of average food consumption per person per day
+ggplot(avg_food_3, aes(x = avg_food_consumed)) +
+  geom_density(fill = "blue", alpha = 0.6) +
+  geom_vline(xintercept = mean(avg_food_3$avg_food_consumed), col = "red") +
+  labs(x = "Average of food served per day per person (lbs)",
+       y = "Density of the distribution",
+       caption = "An average adult person consumes 3-5 pounds of food per day") + 
+  theme_bw() +
+  theme(plot.caption = element_text(color = "blue", face = "italic", size = 14))
+  
+```
+
+The source for the statement in the footnote is [here](https://www.precisionnutrition.com/what-are-your-4-lbs). Some observations from this plot can be made here:
+
+* Most people need around 9 pounds of food per day (_this contradicts the average reported by he external data! Probably the units in the records are family. But Viki from UMD said "people and families". Need more clarifications!_)
+* The data distribution is bimodal -- has two peaks. This probably separates different genders, ages,etc. However, no more auxiliary variables can help us tell them apart from the data.
+
+
+## The Main Analysis: Building The Model
+Now, we fit the simple linear regression model to find the best estimate for the average food distributed in pounds per person per day and plot it. To achieve this, we need the following helper function, based on the original by [Susan Johnston](https://sejohnston.com/2012/08/09/a-quick-and-easy-function-to-plot-lm-results-in-r/):
+
+``` {r lm_helper_fxn} 
+ggplotRegression <- function (fit) {
+ggplot(fit$model, aes_string(x = names(fit$model)[2], y = names(fit$model)[1])) + 
+  geom_point() +
+  stat_smooth(method = "lm", col = "red") +
+  labs(caption = paste("adjusted r-square =", signif(summary(fit)$adj.r.squared, 4),
+                       ", slope =", signif(fit$coef[[1]], 4),
+                       ", p =", signif(summary(fit)$coef[1, 4], 4))) +
+  theme_bw() +
+  theme(plot.caption = element_text(color = "blue", face = "italic", size = 14))
+}
+```
+
+Then we make the plot
+``` {r lm_plot}
+# fitting a linear regression model without intercept
+fit1 <- lm(total_food_provided ~ total_person_count - 1, data = avg_food_3)
+p <- ggplotRegression(fit1) +
+  labs(x = "Number of People served",
+       y = "Total food distributed in a day (lbs)")
+p
+```
+
+The plot shows that, on average, a person takes 9.035 pounds of food at the community cafe at UMD per day. The model fits the data well as seen by the adjusted r-square and p-value of nearly 0 (which was rounded to 0) for the slope test.
+
+# Conclusions And Discussions
+__The simple linear regression model we built has shown that a person takes 9.035 pounds of food at the community cafe at UMD per day on average, which is the recommended portions per meal for each person__.
+
+However, there are several cautions arise from the interpretations of this model. First, we do not have auxilliary data to show exactly the needs for food per date for people of different genders and ages. Moreover, due to the huge amount of missing data, the estimated average could be driven away from the true estimate in either direction depending on those missig parts. Thirdly, the model does not differentiate the difference in the number of meals served between weekdays and weekends. We also cannot verify whether the "two meals on weekdays and three on weekends" are recently established or long existant. Last but not least, the estimate is a lot bigger than 4-5 pounds, the estimated value for an average adults. We have discussed this conflict arises partially from the unclear unit used for the `Food.Provided.for` variable. These could be the possible directions to improve the model in the future. 
