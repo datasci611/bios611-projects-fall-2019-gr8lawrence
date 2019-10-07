@@ -1,5 +1,7 @@
 ---
 title: "Estimating Average Food Consumption Per Person At The Community Cafe At Urban Ministries of Durham"
+author: Tianyi Liu
+date: 10/07/2019
 output: html_document
 ---
 <!-- The followings are some specifications for styling and formatting -->
@@ -64,55 +66,74 @@ head(dat_food)
 ```
 Then we tidy the data by setting the dates to the correct formats and removing all rows that contain `NA`.
 ```{r tidy_data}
-# correct the date format
+# correct the date format and remove the rows with missing values
 dat_food$Date <- as.Date(dat_food$Date, "%m/%d/%Y")
-# finding the row indexes with missing data
-na_ind <- union(union(which(is.na(dat_food$Food.Provided.for)),
-                which(is.na(dat_food$Food.Pounds))), which(is.na(dat_food$Date)))
-# removing these rows
-dat_food_tidied <- dat_food[-na_ind, ]
+dat_food_tidied <- na.omit(dat_food)
 # print the tidied data
 head(dat_food_tidied)
 ```
 A word on the quality of the data: a total of `r dim(dat_food)[1] - dim(dat_food_tidied)[1]` rows contain missing entries.
 
 ## Cleaning And Summarizing The Data
-We summarize the distributions of daily food consumptions per person and the correlation between the food consumed and the number of people
+We summarize the distributions of daily food consumptions per person and the correlation between the food consumed and the number of people.
 
+Before that, we check if there is any abnormal entries for the number of customers served (because this will serve as the denominator of the average food consumption). 
+``` {r num_of_customer_check}
+range(dat_food_tidied$Food.Provided.for)
+```
+We should remove the rows with 0. We also check if the dates are correct.
+```{r dates}
+range(dat_food_tidied$Date)
+```
+For some reason the data also contains chronological mistakes. We remove the rows with dates later than "2019-09-10", the date before the UMD staff presented their data.
+``` {r num_of_customer_and_date_fix}
+dat_food_tidied <- dat_food_tidied %>%
+  filter(Food.Provided.for > 0) %>%
+  filter(Date < as.Date("2019-09-10"))
+```
+Now we calculate the average food consumption per person per day
 ```{r summary_avg_food_cons}
 avg_food <- dat_food_tidied %>%
   group_by(Date) %>%
   summarise(total_food_provided = sum(Food.Pounds),
             total_person_count = sum(Food.Provided.for),
             avg_food_consumed = sum(Food.Pounds)/sum(Food.Provided.for)) %>%
-  arrange(desc(avg_food_consumed))
-# remove the rows with na after summarizing
-avg_food <- avg_food[-which(is.na(avg_food$avg_food_consumed)), ]
+  arrange(desc(avg_food_consumed)) %>%
+  na.omit() # remove the missing values after summarizing
 # show the top six observations
 head(avg_food)
 ```
 Obviously, the first line printed above is an outlier. We go back and check:
 ``` {r food_check}
-head(dat_food_tidied[which(dat_food_tidied$Date == as.Date("2018-06-12")), ] %>%
-  arrange(desc(Food.Pounds)))
+head(dat_food_tidied %>% 
+       filter(Date == as.Date("2018-06-12")) %>% 
+       arrange(desc(Food.Pounds)))
 ```
 The line with `r max(dat_food_tidied$Food.Pounds[which(dat_food_tidied$Date == as.Date("2018-06-12"))])` pounds of food distributed in one day was certainly abnormal, probably due to some typos. To minimally impact the data, we remove the row with the outlier and summarize the data again. 
-We also add the z-score of each day's average food consumption per person and flag the values with an absoulte z-score greater than 2 for data filtering later. For a series of data $x$ the z-score for each member of the series $x_i$ is calculated by \[
-z_i = \frac{x_i - \textrm{mean}(x)}{\textrm{sd}(x)}
-\]
-
 ```{r summary_avg_food_2}
-food_pounds_outlier <- max(dat_food_tidied$Food.Pounds[which(dat_food_tidied$Date == as.Date("2018-06-12"))])
+food_pounds_outlier <- max(dat_food_tidied %>% 
+                             filter(Date == as.Date("2018-06-12")) %>%
+                             select(Food.Pounds))
 
-avg_food_2 <- dat_food_tidied[-which(dat_food_tidied$Food.Pounds == food_pounds_outlier), ] %>%
+avg_food_2 <- dat_food_tidied %>% 
+  filter(Food.Pounds != food_pounds_outlier) %>%
   group_by(Date) %>%
   summarise(total_food_provided = sum(Food.Pounds),
             total_person_count = sum(Food.Provided.for),
-            avg_food_consumed = sum(Food.Pounds)/sum(Food.Provided.for)) 
+            avg_food_consumed = sum(Food.Pounds)/sum(Food.Provided.for)) %>%
+  arrange(desc(avg_food_consumed)) %>%
+  na.omit()
 
-# remove the na rows after summarizing again
-avg_food_2 <- avg_food_2[-which(is.na(avg_food_2$avg_food_consumed)), ]
+# inspect the data
+head(avg_food_2)
+```
 
+Now we have removed the abnormal entries in the data. Next, we add the z-score of each day's average food consumption per person and flag the values with an absoulte z-score greater than 2 for data filtering later. For a series of data $x$ the z-score for each member of the series $x_i$ is calculated by 
+\[
+z_i = \frac{x_i - \textrm{mean}(x)}{\textrm{sd}(x)}
+\]
+
+``` {r flag_extreme_values}
 # flag the extreme average values
 avg_food_2 <- avg_food_2 %>%
   mutate(avg_z = (avg_food_consumed - mean(avg_food_2$avg_food_consumed))/ sd(avg_food_2$avg_food_consumed),
@@ -154,7 +175,7 @@ ggplot(avg_food_3, aes(x = total_person_count , y = total_food_provided)) +
   coord_fixed(ratio = 1/9.12) +
   geom_point() + 
   geom_abline(intercept = 0, slope = mean(avg_food_3$avg_food_consumed), col = "red") +
-  labs(x = "Number of People served",
+  labs(x = "Number of people served",
        y = "Total food distributed in a day (lbs)") +
   annotate("text", x = 100, y = 2000, size = 4, label = paste("Average = ", signif(mean(avg_food_3$avg_food_consumed)))) +
   theme_bw()
@@ -201,14 +222,151 @@ Then we make the plot
 # fitting a linear regression model without intercept
 fit1 <- lm(total_food_provided ~ total_person_count - 1, data = avg_food_3)
 p <- ggplotRegression(fit1) +
-  labs(x = "Number of People served",
+  labs(x = "Number of people served",
        y = "Total food distributed in a day (lbs)")
 p
 ```
 
 The plot shows that, on average, a person takes 9.035 pounds of food at the community cafe at UMD per day. The model fits the data well as seen by the adjusted r-square and p-value of nearly 0 (which was rounded to 0) for the slope test.
 
+# Is This The Answer?
+The model seems enticing because it fits the data well. However, does this really answer our question? If 9.035 pounds of food per person per day seems a little too much, then what could be the issue? Also, what is the reason behind the bimodality of our average food consumption?
+
+Since there is no auxiliary variable and instant feedback, we cannot tell the exact reason. However (credits to one of the feedbacks I received), the data could be a mixture of food distributed in both the Cafe and the Pantry. _Therefore, the food could weigh pretty heavy because the weights of the containers could be added to the total weight. Moreover, a customer could take a month's worth of food at one time, inflating the total amount of food distributed_. This might also explain those outliers we removed before doing the simple linear regression.
+
+Therefore, maybe it is reasonable that we perform some clustering on the average food weight data in the original dataset (assuming that it did not mix the cafe and pantry data for each line) and see if there is more patterns within it. We use the k-mean clustering method with total number of clusters $k = 2$.
+
+``` {r clustering}
+# set randomization seed
+set.seed(100)
+
+# perform the k-mean clustering and attach the cluster number to the original data set
+k_means <- dat_food_tidied %>%
+    filter(Food.Pounds != food_pounds_outlier) %>%
+    select(Food.Pounds, Food.Provided.for) %>%
+    kmeans(2)
+
+clustered_data <- dat_food_tidied %>%
+  filter(Food.Pounds != food_pounds_outlier) %>%
+  mutate(cluster = factor(k_means$cluster))
+```
+
+Then we plot the clustered data from different views:
+
+``` {r plot_kmeans}
+ggplot(clustered_data, aes(x = Food.Provided.for, y = Food.Pounds, col = cluster)) +
+  geom_point() + 
+  labs(title = "K-mean Clusters (General View)",
+       x = "Number of people served",
+       y = "Total food distributed in a day (lbs)") +
+  theme_bw()
+
+ggplot(clustered_data, aes(x = Food.Provided.for, y = Food.Pounds, col = cluster)) +
+  geom_point() + 
+  xlim(0, 800) +
+  ylim(0, 800) +
+  labs(title = "K-mean Clusters (Closer View)",
+       x = "Number of people served",
+       y = "Total food distributed in a day (lbs)") +
+  theme_bw()
+
+ggplot(clustered_data, aes(x = Food.Provided.for, y = Food.Pounds, col = cluster)) +
+  geom_point() + 
+  xlim(0, 100) +
+  ylim(0, 100) +
+  labs(title = "K-mean Clusters (Proximate View)",
+       x = "Number of people served",
+       y = "Total food distributed in a day (lbs)") +
+  theme_bw()
+  
+```
+
+Now let's inspect the average food consumption per person per day in each cluster:
+
+``` {r cluster_average}
+clustered_data_summary <- clustered_data %>% 
+  mutate(avg_food_consumption = Food.Pounds/Food.Provided.for) %>%
+  na.omit() %>%
+  group_by(cluster) %>%
+  summarise(cluster_mean_avg_food_consumption = mean(avg_food_consumption),
+            n = sum(Food.Provided.for))
+  
+clustered_data_summary
+```
+This seems to filter out the extreme values in cluster 2. We take only the data from cluster 1 and does the same analysis again
+``` {r cluster_analysis_2}
+clustered_subset <- clustered_data %>%
+  filter(cluster == 1)
+
+k_means_2 <- clustered_subset %>%
+    select(Food.Pounds, Food.Provided.for) %>%
+    kmeans(2)
+
+clustered_data_2 <- clustered_subset %>%
+  mutate(cluster = factor(k_means_2$cluster))
+
+ggplot(clustered_data_2, aes(x = Food.Provided.for, y = Food.Pounds, col = cluster)) +
+  geom_point() + 
+  labs(title = "K-mean Clusters on The Subset",
+       x = "Number of people served",
+       y = "Total food distributed in a day (lbs)") +
+  theme_bw()
+
+clustered_data_summary_2 <- clustered_data_2 %>% 
+  mutate(avg_food_consumption = Food.Pounds/Food.Provided.for) %>%
+  na.omit() %>%
+  group_by(cluster) %>%
+  summarise(cluster_mean_avg_food_consumption = mean(avg_food_consumption),
+            n = sum(Food.Provided.for))
+  
+clustered_data_summary_2
+```
+This does seem to capture the bimodality shown above a little bit. If we do the single linear regression seperately on each sub cluster, we have
+``` {r separate_lm}
+group_1 <- clustered_data_2 %>%
+  filter(cluster == 1)
+
+group_1_avg <- group_1 %>%
+  group_by(Date) %>%
+  summarise(total_food_provided = sum(Food.Pounds),
+            total_person_count = sum(Food.Provided.for),
+            avg_food_consumed = sum(Food.Pounds)/sum(Food.Provided.for)) %>%
+  arrange(desc(avg_food_consumed)) %>%
+  na.omit()
+
+group_2 <- clustered_data_2 %>%
+  filter(cluster == 2)
+
+group_2_avg <- group_2 %>%
+  group_by(Date) %>%
+  summarise(total_food_provided = sum(Food.Pounds),
+            total_person_count = sum(Food.Provided.for),
+            avg_food_consumed = sum(Food.Pounds)/sum(Food.Provided.for)) %>%
+  arrange(desc(avg_food_consumed)) %>%
+  na.omit()
+
+fit_group_1 <- lm(total_food_provided ~ total_person_count - 1, data = group_1_avg)
+p_1 <- ggplotRegression(fit_group_1) +
+  labs(x = "Number of people served",
+       y = "Total food distributed in a day (lbs)")
+
+fit_group_2 <- lm(total_food_provided ~ total_person_count - 1, data = group_2_avg)
+p_2 <- ggplotRegression(fit_group_2) +
+  labs(x = "Number of people served",
+       y = "Total food distributed in a day (lbs)")
+p_1
+p_2
+```
+
+From the plots above, we see that the estimated food consumed in pounds per person per day is 6.933 and 10.88 respectively for each sub cluster. The model fits the data well according to the $R^2_{adj}$ and $p$ values. The value of sub cluster 1 edges closer to the reported national average but is still above that.
+
+Nevertheless, it is hard to tell whether we really separated the food served in the Cafe from that in the Pantry by using the k-mean clustering. It would be better if we can communicate more with UMD about the data entries to make sense of the clusters.
+
 # Conclusions And Discussions
 __The simple linear regression model we built has shown that a person takes 9.035 pounds of food at the community cafe at UMD per day on average, which is the recommended portions per meal for each person__.
 
-However, there are several cautions arise from the interpretations of this model. First, we do not have auxilliary data to show exactly the needs for food per date for people of different genders and ages. Moreover, due to the huge amount of missing data, the estimated average could be driven away from the true estimate in either direction depending on those missig parts. Thirdly, the model does not differentiate the difference in the number of meals served between weekdays and weekends. We also cannot verify whether the "two meals on weekdays and three on weekends" are recently established or long existant. Last but not least, the estimate is a lot bigger than 4-5 pounds, the estimated value for an average adults. We have discussed this conflict arises partially from the unclear unit used for the `Food.Provided.for` variable. These could be the possible directions to improve the model in the future. 
+However, there are several cautions arise from the interpretations of this model. First, we do not have auxilliary data to show exactly the needs for food per date for people of different genders and ages and we also cannot ascertain the location the food was served. The bimodality of the average personal food consumption per day seems to suggest the above factors play a role in creating it.
+
+We did explore further using the k-mean clustering method to subset data, and the method seems to group the data into two separate clusters with different regression means. Nevertheless, it is unable to know what was behind the division of the clusters with the available information. But if the UMD staff can recognize the difference, the separated regression means could serve as suggestions for the food portions served.
+
+Moreover, due to the huge amount of missing data, the estimated average could be driven away from the true estimate in either direction depending on those missig parts. Thirdly, the model does not differentiate the difference in the number of meals served between weekdays and weekends. We also cannot verify whether the "two meals on weekdays and three on weekends" are recently established or long existant. Last but not least, the estimate is a lot bigger than 4-5 pounds, the estimated value for an average adults. We have discussed this conflict arises partially from the unclear unit used for the `Food.Provided.for` variable. When the mentioned information is provided, these could be the possible directions to improve the model in the future. 
