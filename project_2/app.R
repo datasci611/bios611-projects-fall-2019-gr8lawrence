@@ -38,6 +38,8 @@ ui <- fluidPage(
     
     # Main panel for displaying outputs ----
     mainPanel(
+      # Output: App Manual
+      textOutput(outputId = "manual"),
       
       # Output 1: The summary table
       tableOutput(outputId = "summaryTable"),
@@ -57,13 +59,13 @@ server <- function(input, output) {
     if (input$Variable != "Date") {
       make_summary(UMD_dat[[input$Variable]], include_zeroes = input$IncludeZeroes)
     } else {
-      date_summary(UMD_dat)
+      date_year_summary(UMD_dat)
     } 
   })
   
   output$byMonthPlot <- renderPlot({
     if (input$Variable != "Date") {
-      by_month_plot(UMD_dat, input$Variable)
+      by_month_plot(UMD_dat, input$Variable, include_zeroes = input$IncludeZeroes)
     } else {
       date_histogram(UMD_dat)
     }
@@ -73,6 +75,12 @@ server <- function(input, output) {
   output$explanations <- renderText({
     paste("Explanation of the variable:", UMD_metadat[[input$Variable]])
   })
+  
+  # Create a text output for the manual
+  output$manual <- renderText({"This is an app designed to help you check the data, especially the numeric entries and dates, by summarizing the data for you.
+          For each numerical variable, it will return a table with summary statistics of the variable so you can check whether there are abnormal values that drive the data crazy. It also allows you 
+          to see the distribution of data entries across 12 months to judge whether they make sense based on your practical knowledge. Just click on the button to select the variable you wish to check. For dates,
+    it allows you to check the range of the years and the number of records before 1980 and after 2019 (anachronistic records) as well as for each month (plotted in a histogram) to determine the consistency of entries."})
   
 }
 

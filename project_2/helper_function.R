@@ -1,8 +1,8 @@
 library(tidyverse)
 
 ## Data directory
-data_dir <- "/Users/gr8lawrence/Desktop/Bios_611/bios611-projects-fall-2019-gr8lawrence/project_2/data/"
-
+# data_dir <- "/Users/gr8lawrence/Desktop/Bios_611/bios611-projects-fall-2019-gr8lawrence/project_2/data/"
+data_dir <- "./data/"
 ## Read data
 # UMD data
 UMD_dat <- as_tibble(read.csv(file = paste(data_dir, "UMD_Services_Provided_20190719.tsv", sep = ""), 
@@ -51,7 +51,7 @@ make_summary <- function(numeric_values, include_zeroes) {
   return(df)
 }
 # Summary table for months
-date_summary <- function(df) {
+date_month_summary <- function(df) {
   df = df %>% 
     mutate(Month = factor(months(Date), levels = c("January", "February", "March",
                                                    "April", "May", "June", "July",
@@ -60,11 +60,29 @@ date_summary <- function(df) {
     select(Month) %>%
     group_by(Month) %>%
     summarise(Count = n())
+  return(df)
+}
+
+date_year_summary <- function(df) {
+  df = df %>% 
+    mutate(Year = as.numeric(substring(Date, 1, 4))) %>%
+    select(Year) 
   
+  too_early_df = df %>%
+    filter(Year < 1980)
+  
+  too_late_df = df %>% 
+    filter(Year > 2019)
+   
+  summary_df = tibble(Min = min(df$Year),
+                      Max = max(df$Year),
+                      Before.1980.records = length(too_early_df$Year),
+                      After.2019.records = length(too_late_df$Year))
+  return(summary_df)
 }
 
 date_histogram <- function(df) {
-  date_summary_df = date_summary(df) 
+  date_summary_df = date_month_summary(df) 
   q = ggplot(date_summary_df, aes(x = Month, y = Count, fill = Month)) +
     geom_col(alpha = 0.6) + 
     theme_classic() +
@@ -78,7 +96,7 @@ date_histogram <- function(df) {
 
 # Summarize the median by month
 # The data frame must have a column of time stamps named "Date"
-by_month_plot <- function(df, variable) {
+by_month_plot <- function(df, variable, include_zeroes) {
   df = df %>%
     mutate(month = factor(months(Date), levels = c("January", "February", "March",
                                                    "April", "May", "June", "July",
@@ -86,6 +104,10 @@ by_month_plot <- function(df, variable) {
                                                    "November", "December"))) %>%
     select(month, variable) %>%
     drop_na(variable)
+  
+  if (include_zeroes == FALSE) {
+    df = df[which(df[[variable]] > 0), ]
+  }
 
   q = ggplot(df, aes(x = month, y = get(variable), fill = month)) +
     geom_boxplot(alpha = 0.6) +
