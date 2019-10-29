@@ -11,12 +11,13 @@ UMD_dat <- as_tibble(read.csv(file = paste(data_dir, "UMD_Services_Provided_2019
 
 # Create the metadata
 UMD_metadat <- tibble(Date = "Date service was provided",
+                      Bus.Tickets..Number.of. = "Service discontinued",
                       Food.Provided.for = "Number of people in the family for which food was provided
 ",
-                      Food.Pounds = "",
-                      Clothing.Items = "",
-                      School.Kits = "",
-                      Hygiene.Kits = "",
+                      Food.Pounds = "(Not provided by UMD)",
+                      Clothing.Items = "(Not provided by UMD)",
+                      School.Kits = "(Not provided by UMD)",
+                      Hygiene.Kits = "(Not provided by UMD)",
                       Financial.Support = "Money provided to clients. Service discontinued.")
 
 # Filtering the data
