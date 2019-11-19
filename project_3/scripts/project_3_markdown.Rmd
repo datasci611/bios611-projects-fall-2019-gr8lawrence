@@ -1,0 +1,83 @@
+---
+title: "Insurance Coverage Status and Changes"
+author: "Tianyi Liu"
+date: "11/18/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library("tidyverse")
+data_dir <- "/Users/gr8lawrence/Desktop/Bios_611/bios611-projects-fall-2019-gr8lawrence/project_3/final_data/"
+total_df <- as_tibble(read_csv(paste0(data_dir, "wrangled_data.csv"))) %>%
+  select(-X1)
+```
+
+## Background
+_Full back ground descriptions to be added later._ Importance of investigating insurance coverage: it indicates how many people and what kind of people especially are at risks of not being able to pay medical bills and receive proper medical treatments.
+
+## Data
+_Full data description to be added later._ Three data files that contain the demographic data and insurance status of the clients are included in the study. Data are first wrangled in the `data_wrangling.ipynb` file that tidies the data (e.g. reformatting values and removing missing data) and keeps only relevant results.
+
+## Results
+### Demographic characteristics
+Before we delve into the insurance coverage situations, we have a peek at the demographic variables of the data set after cleaning and wrangling.
+
+``` {r demo_sum}
+demo_df <- total_df %>%
+  select(age_at_entry, race, gender, ethnicity, veteran_status)
+
+# We plot the histrograms for the distribution of ages of people entering the shelter
+ggplot(demo_df, aes(x = age_at_entry)) +
+  geom_histogram(binwidth = 5, fill = "cyan", col = "black", alpha = 0.65) +
+  theme_classic()
+
+# The histogram for the distribution of gender
+ggplot(demo_df, aes(x = gender, fill = gender)) + 
+  geom_bar(width = 0.5, col = "black", alpha = 0.65) +
+  theme_classic()
+
+# The histogram for the distribution of race
+ggplot(demo_df, aes(x = race, fill = race)) + 
+  geom_bar(width = 0.5, col = "black", alpha = 0.65) +
+  theme_classic()
+
+# The histogram for the distribution of ethnicity
+ggplot(demo_df, aes(x = ethnicity, fill = ethnicity)) + 
+  geom_bar(width = 0.5, col = "black", alpha = 0.65) +
+  theme_classic()
+
+# The histogram for the distribution of veteran status
+ggplot(demo_df, aes(x = veteran_status, fill = veteran_status)) + 
+  geom_bar(width = 0.5, col = "black", alpha = 0.65) +
+  theme_classic()
+
+```
+
+### Baseline Insurance Coverage
+We are interested in the insurance coverage of clients and their association with different demographic characteristics (`gender`, `race`, `ethnicity`, and `veteran status`) at their time of entering the shelter. First, we take a look at the number of people of certain demographic groups that had insurance coverage when they entered the shelter compared to people from the same group that do not have coverages.
+
+```{r baseline_insurance_1}
+baseline_df <- total_df %>%
+  select(age_at_entry, gender, race, ethnicity, veteran_status, ins_covered_entry, ins_type_entry) 
+
+
+
+# We plot the histrograms for the distribution of ages of people entering the shelter
+ggplot(baseline_df, aes(x = ins_covered_entry, fill = ins_covered_entry)) +
+  geom_bar(width = 0.5, col = "black", alpha = 0.65) +
+  facet_grid(.~gender) +
+  theme_classic()
+
+```
+
+_(To be continued) I will also make the same kind of plots and a table that shows the proportion of insured people for each demographic variable._
+
+## What Kind of Coverage Do People Who Had Insurance Coverage Had?
+_(To be continued) I will use histograms to show this._
+
+## Who Are More Likely to Be Insured/Uninsured?
+_(To be continued) I will use a baseline logit (logistic) regression model to determine the effects of certain demographic variables on the odds of being insured._ 
+
+## Are More People Getting Insured When They Left Tbe Shelter?
+_(To be continued) I will use histograms to show this._
+
