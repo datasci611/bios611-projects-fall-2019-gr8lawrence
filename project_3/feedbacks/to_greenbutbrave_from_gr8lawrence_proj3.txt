@@ -1,0 +1,19 @@
+Very ambitious and potentially impactful project. I appreciate your attention to
+help the UMD workers with identifying the clients that are most likely to achieve
+self-sufficiency. The selected methods (PCA and LASSO regression) are very good methods
+for data exploration. And of course, you used Pandas and Tidyverse as your primary
+tools of analysis. Since the project is not completed yet, I'll make suggestions based
+only on the available parts:
+
+(1) I found the dataset you used in the R file has column names that involve spaces
+and parentheses which are a little confusing to the readers and potentially to the compiler. I
+suggest using extra steps in Python to rename the columns so they are more programmable
+(such as "income_source" instead of "Income Source (Entry)"). I believe the Pandas
+dataframe has the method df.columns for this.
+
+(2) It's probably better for you to explain the rationales of Lasso (penalty for avoiding
+too many parameters, etc.) and PCA. These are some explainable but not so intuitive methods.
+Also, I personally think Lasso alone can do a great job in reducing parameter dimensionality.
+Therefore, using only Lasso on the given covariates might produce something more interpretable.
+PCA is great too but a little harder to interpret when you use it and use Lasso to select
+principal components.
