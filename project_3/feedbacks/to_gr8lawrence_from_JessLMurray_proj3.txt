@@ -1,0 +1,17 @@
+to_gr8lawrence_from_JessLMurray_proj3.txt
+
+Impressions: 
+Thank you for your note regarding your progress! This gave me a bit more context to provide feedback. 
+You readme is easy to follow and succinct with a list of data sets to be used. I think it describes everything you need without getting too technical for the average reader. Nice job! Depending on who will look at your project, it may be helpful to have a couple of sentences describing UMD itself and what UMD stands for. I also like your summary html document for the descriptive statistics of the client data set - it was easy to follow, and the variables investigated should be valuable for those at UMD. Be sure to finish your thoughts in the Data section once your project is complete. You have also organized your document very well with headings that describe your objectives. Try rotating your x-axis titles with ggplot so that categorical variables are fully visible in your bar charts - you can use something along the lines of the following: theme(axis.text.x = element_text(angle = 65, hjust = 1)). Also, I believe there is a typo in your final header - "The" is spelled as "Tbe". Overall, I think your work is very promising and I'm interested to see your conclusions! 
+
+Feedback Outline: 
+1. project is organized modularly but does not include Make 
+2. project used both Python and R
+3. Docker is not used
+4. plots are appropriate, though description/interpretation of results is not included
+5. project is well organized, but just needs more analysis to fill in the outline
+6. purpose is not yet fully communicated in html but will be added to final draft; readme has clear list of research questions and objectives
+7. plots and variables being studied make sense for the client
+8. data source is somewhat communicated but may be improved with a background statement on UMD as an organization
+9-10. figures and analysis are not interpreted in final html
+11. take homes are not yet communicated but will be added to final product 
