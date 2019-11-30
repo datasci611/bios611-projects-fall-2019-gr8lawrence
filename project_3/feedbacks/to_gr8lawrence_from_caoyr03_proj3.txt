@@ -1,0 +1,18 @@
+Hi Tianyi, I totally understand your limited timeframe.
+Your readme has already communicated your project scope clearly
+to me. I really admire your project organization and structure.
+You have already marked all missing sections necessary and I 
+am sure you will do an excellent job afterwards. 
+
+For current stage, you have found an interesting perspective to
+do a deep analysis on the insurance coverage which is awesome.
+You have defined your plot types to illustrate your research. 
+My advice would be generating a correlation plot to compare between
+two multi-value variables. I wouldnot say for sure since I am not using 
+the health insurance data, but I guess there are plenty of missing
+values on entry/exit clients which will trouble your data wrangling. 
+You could also consider adding date data as a dimension to 
+analyze on this problem, either from time-series perspective or 
+duration of time. 
+
+Looking forward to your final project! Cheers,
