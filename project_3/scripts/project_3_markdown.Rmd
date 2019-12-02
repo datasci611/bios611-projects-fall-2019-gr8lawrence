@@ -48,7 +48,7 @@ knitr::opts_chunk$set(fig.width = 6, fig.height = 4, fig.align = 'center',
 library("tidyverse")
 library("knitr")
 library("kableExtra")
-data_dir <- "./final_data/"
+data_dir <- "../final_data/"
 total_df <- as_tibble(read_csv(paste0(data_dir, "wrangled_data.csv"))) %>%
   mutate_at(vars(gender, race, ethnicity, veteran_status, ins_covered_exit,
                  ins_type_exit, ins_covered_entry, ins_type_entry), factor)
