@@ -83,6 +83,13 @@ Since this is an overview study, we plan only to do some exploratory analyses. T
 3. Using a logistic regression model to estimate the odds of a client with certain demographic characteristics of being uninsured
 
 ## Results
+We are interested in many questions that are related to the insurance coverage situation at the shelter:
+
+* How many clients had insurance when they entered the shelter?
+* What types of insurance did the clients have?
+* What demographic factors contribute to higher chances of having insurance?
+* Were there more people getting insured when they exited the shelter compared to when they entered the shelter?
+
 ### Demographic characteristics
 Before we delve into the insurance coverage situations, we have a peek at the demographic variables of the data set after data cleaning and wrangling. _These variables are going to be the ones we use as covariates in the analysis of insurance coverage later_ so it is rather important to grasp their looks. We begin with the client ages at entry, the only continuous demographic variable we consider.
 
@@ -206,12 +213,6 @@ ggplot(demo_df, aes(x = veteran_status, fill = veteran_status)) +
 The majority of the clients at the shelter (87.5%) did not have veteran status.
 
 ### Client Insurance Coverage
-We are interested in many questions that are related to the insurance coverage situation at the shelter:
-
-* How many clients had insurance when they entered the shelter?
-* What types of insurance did the clients have?
-* What demographic factors contribute to higher chances of having insurance?
-* Were there more people getting insured when they exited the shelter compared to when they entered the shelter?
 
 #### How many clients were insured when they entered the shelter?
 ``` {r ins_clients}
