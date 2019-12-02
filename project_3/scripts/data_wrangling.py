@@ -10,8 +10,8 @@ import numpy as np
 import os as os
 
 # Raw and final data file directory paths
-raw_dir = '../raw_data/'
-final_dir = '../final_data/'
+raw_dir = './raw_data/'
+final_dir = './final_data/'
 
 # Read in the raw data
 # Demographic data
