@@ -1,83 +1,355 @@
 ---
-title: "Insurance Coverage Status and Changes"
+title: "Client Health Insurance Coverage Status At UMD: An Overview Study"
 author: "Tianyi Liu"
 date: "11/18/2019"
 output: html_document
 ---
 
+<!-- The followings are some specifications for styling and formatting -->
+<style type="text/css">
+body{ /* Normal  */
+      font-size: 16px;
+      font-family: "Times New Roman", Times, serif;
+}
+td{  /* Table  */
+  font-size: 16px;
+}
+h1.title {
+  font-size: 38px;
+  color: DarkRed;
+}
+h1 { /* Header 1 */
+  font-size: 28px;
+  color: DarkBlue;
+}
+h2 { /* Header 2 */
+    font-size: 22px;
+  color: DarkBlue;
+}
+h3 { /* Header 3 */
+  font-size: 18px;
+  color: DarkBlue;
+}
+h4 { /* Header 4 */
+  font-size: 18px;
+  color: DarkGreen;
+}
+code.r{ /* Code block */
+    font-size: 14px;
+}
+pre { /* Code block - determines code spacing between lines */
+    font-size: 14px;
+}
+</style>
+
 ```{r setup, include=FALSE}
+knitr::opts_chunk$set(fig.width = 6, fig.height = 4, fig.align = 'center',
+                      echo = FALSE, warning = FALSE, message = FALSE)
 library("tidyverse")
-data_dir <- "/Users/gr8lawrence/Desktop/Bios_611/bios611-projects-fall-2019-gr8lawrence/project_3/final_data/"
+library("knitr")
+library("kableExtra")
+data_dir <- "../final_data/"
 total_df <- as_tibble(read_csv(paste0(data_dir, "wrangled_data.csv"))) %>%
-  select(-X1)
+  mutate_at(vars(gender, race, ethnicity, veteran_status, ins_covered_exit,
+                 ins_type_exit, ins_covered_entry, ins_type_entry), factor)
 ```
 
 ## Background
-_Full back ground descriptions to be added later._ Importance of investigating insurance coverage: it indicates how many people and what kind of people especially are at risks of not being able to pay medical bills and receive proper medical treatments.
+According to [National Coalition for The Homeless](https://www.nationalhomeless.org/factsheets/health.html), homelessness is highly interwoven with lacks of health insurance. Not only that being uninsured is a cause of homelessness, but homeless people are also _3 to 6 times more likely to be sick_ than people who are not homeless, meaning homeless people are especially at risks of not being able to pay medical bills and receive proper medical treatments. Since most clients at the Urban Ministry of Durham (UMD) are homeless and one of UMD's fundamental tasks is to help them with transitioning to a normal living, it is beneficial for the clients if the staff of the UMD to know how many of them are not covered by any health insurance and, should a new client join the shelter, what would be his or her risks of not being covered based on the new client's demographic information. In short, this study aims at:
+
+1. Showing the general situations of clients' health insurance coverage
+2. Predict what types of demographic configurations of clients can lead to higher probabilities of not being covered
+3. Inform the UMD staff of the results and hopefully this study can help them identify the issues and help their clients who need to find health insurance coverages
 
 ## Data
-_Full data description to be added later._ Three data files that contain the demographic data and insurance status of the clients are included in the study. Data are first wrangled in the `data_wrangling.ipynb` file that tidies the data (e.g. reformatting values and removing missing data) and keeps only relevant results.
+### Data Sources
+The related data were given by the staff members of the UMD. Three data files that contain the demographic data and insurance status of the clients are included in this analysis. Data are wrangled through Python and then analyzed using R.
+
+### Wrangling
+The entire wrangling step is completed in `data_wrangling.ipynb`. In the wrangling the following steps are performed:
+
+* Insurance data (both at client entrances and exits) are merged into a single data frame with client demographic data by the unique client IDs.
+* Column names and catrgorical variables are reformatted to the analytic formats.
+* Missing values and replicates are removed from the data frame.
+* The finished data frame is exported into a CSV file to be used by this analysis.
+
+
+## Methods
+Since this is an overview study, we plan only to do some exploratory analyses. The entire study contains three stages:
+
+1. Showing the distributions of demographic variables
+    * This is essentially quality checking; certain under-represented demographic combinations may affect the planned modeling approaches.
+2. Showing the overall health insurance coverage situations of the clients at UMD
+3. Using a logistic regression model to estimate the odds of a client with certain demographic characteristics of being uninsured
 
 ## Results
 ### Demographic characteristics
-Before we delve into the insurance coverage situations, we have a peek at the demographic variables of the data set after cleaning and wrangling.
+Before we delve into the insurance coverage situations, we have a peek at the demographic variables of the data set after data cleaning and wrangling. _These variables are going to be the ones we use as covariates in the analysis of insurance coverage later_ so it is rather important to grasp their looks. We begin with the client ages at entry, the only continuous demographic variable we consider.
 
-``` {r demo_sum}
+``` {r demo_ages}
 demo_df <- total_df %>%
   select(age_at_entry, race, gender, ethnicity, veteran_status)
 
 # We plot the histrograms for the distribution of ages of people entering the shelter
-ggplot(demo_df, aes(x = age_at_entry)) +
-  geom_histogram(binwidth = 5, fill = "cyan", col = "black", alpha = 0.65) +
-  theme_classic()
+age_mean = mean(demo_df$age_at_entry)
+age_median = median(demo_df$age_at_entry)
 
-# The histogram for the distribution of gender
+ggplot(demo_df, aes(x = age_at_entry)) +
+  geom_histogram(binwidth = 5, fill = "light grey", col = "black", alpha = 0.65) +
+  theme_classic() +
+  geom_vline(xintercept = age_mean, col = "red") + 
+  annotate("segment", x = age_mean - 3, xend = age_mean, y = 375, yend = 375, col = "red") +
+  annotate("text", x = age_mean - 10, y = 375, label = paste0("Mean = ", round(age_mean, digit = 3))) + 
+  geom_vline(xintercept = age_median, col = "blue") +
+  annotate("segment", x = age_median - 3, xend = age_median, y = 350, yend = 350, col = "blue") +
+  annotate("text", x = age_median - 10, y = 350, label = paste0("Median = ", round(age_median, digit = 3))) + 
+  labs(title = "Distribution of Client Ages at Their Entry to The Shelter",
+       x = "Age at Entry",
+       y = "Count")
+
+# ggsave("Client_Ages.png", width = 6, height = 4)
+```
+
+Most of the clients are aged between 40 and 60. There are also a number of younger clients whose age is between 20 and 40. Next, we take a look at the clients' gender, race, ethnicity, and veteran status. These are categorical variables so we present them by displaying their frequency tables and bar graphs in tandem.
+
+``` {r demo_gen}
+# We produce a frequency table first
+gender_pct_df <- demo_df %>%
+  group_by(gender) %>%
+  summarise(count = n()) %>%
+  mutate(Percentage = paste0(round(100 * count/sum(count), digit = 2), "%"), Gender = gender) %>%
+  select(Gender, Percentage)
+
+kable(gender_pct_df, format = "html", caption = "Table 1: Frequency of Client Genders") %>%
+  kable_styling(full_width = FALSE)
+
+# The bar graph for the distribution of gender
 ggplot(demo_df, aes(x = gender, fill = gender)) + 
   geom_bar(width = 0.5, col = "black", alpha = 0.65) +
-  theme_classic()
+  theme_classic() +
+  labs(title = "Distribution of Client Genders",
+       x = "Gender",
+       y = "Count") +
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.4)) + 
+  scale_fill_discrete(name = "Gender")
+# ggsave("Client_gender.png", width = 6, height = 4)
 
-# The histogram for the distribution of race
+```
+The table and bar graphs show that male clients clearly outnumber female and transgender female clients at the shelter.
+``` {r demo_race}
+# The frequency table
+race_pct_df <- demo_df %>%
+  group_by(race) %>%
+  summarise(count = n()) %>%
+  mutate(Percentage = paste0(round(100 * count/sum(count), digit = 2), "%"), Race = race) %>%
+  select(Race, Percentage)
+
+kable(race_pct_df, format = "html", caption = "Table 2: Frequency of Client Races") %>%
+  kable_styling(full_width = FALSE)
+
+# The bar graph for the distribution of race
 ggplot(demo_df, aes(x = race, fill = race)) + 
   geom_bar(width = 0.5, col = "black", alpha = 0.65) +
-  theme_classic()
+  theme_classic() +
+  labs(title = "Distribution of Client Race",
+       x = "Race",
+       y = "Count") +
+  scale_fill_discrete(name = "Race")
+# ggsave("Client_race.png", width = 6, height = 4)
+```
+
+Black (71.94%) is the predominant race at the shelter compared to other races. There are also considerable white people (25.26%) at the shelter. Other races only constitute a marginal fraction of the entire client population at the shelter.
+``` {r demo_eth}
+# The frequency table
+eth_pct_df <- demo_df %>%
+  group_by(ethnicity) %>%
+  summarise(count = n()) %>%
+  mutate(Percentage = paste0(round(100 * count/sum(count), digit = 2), "%"), Ethnicity = ethnicity) %>%
+  select(Ethnicity, Percentage)
+
+kable(eth_pct_df, format = "html", caption = "Table 3: Frequency of Client Ethnicity") %>%
+  kable_styling(full_width = FALSE)
 
 # The histogram for the distribution of ethnicity
 ggplot(demo_df, aes(x = ethnicity, fill = ethnicity)) + 
   geom_bar(width = 0.5, col = "black", alpha = 0.65) +
-  theme_classic()
+  theme_classic() +
+  labs(title = "Distribution of Client Ethnicty",
+       x = "Ethnicity",
+       y = "Count") +
+  scale_fill_discrete(name = "Ethnicity") 
+# ggsave("Client_eth.png", width = 6, height = 4)
+```
+Most clients at the shelter are non-Hispanic/non-Latino.
+
+``` {r vet_stat}
+# The frequency table
+vet_pct_df <- demo_df %>%
+  group_by(veteran_status) %>%
+  summarise(count = n()) %>%
+  mutate(Percentage = paste0(round(100 * count/sum(count), digit = 2), "%"), Veteran_Status = veteran_status) %>%
+  select(Veteran_Status, Percentage)
+
+kable(vet_pct_df, format = "html", caption = "Table 4: Frequency of Client Veteran Status") %>%
+  kable_styling(full_width = FALSE)
 
 # The histogram for the distribution of veteran status
 ggplot(demo_df, aes(x = veteran_status, fill = veteran_status)) + 
   geom_bar(width = 0.5, col = "black", alpha = 0.65) +
-  theme_classic()
-
+  theme_classic() +
+  labs(title = "Distribution of Client Veteran Status",
+       x = "Veteran Status",
+       y = "Count") +
+  scale_fill_discrete(name = "Veteran Status")
+# ggsave("Client_vet_status.png", width = 6, height = 4)
 ```
+The majority of the clients at the shelter (87.5%) did not have veteran status.
 
-### Baseline Insurance Coverage
-We are interested in the insurance coverage of clients and their association with different demographic characteristics (`gender`, `race`, `ethnicity`, and `veteran status`) at their time of entering the shelter. First, we take a look at the number of people of certain demographic groups that had insurance coverage when they entered the shelter compared to people from the same group that do not have coverages.
+### Client Insurance Coverage
+We are interested in many questions that are related to the insurance coverage situation at the shelter:
 
+* How many clients had insurance when they entered the shelter?
+* What types of insurance did the clients have?
+* What demographic factors contribute to higher chances of having insurance?
+* Were there more people getting insured when they exited the shelter compared to when they entered the shelter?
+
+#### How many clients were insured when they entered the shelter?
+``` {r ins_clients}
+gen_ins_df <- total_df %>%
+  select(ins_covered_entry)
+
+ggplot(gen_ins_df, aes(x = ins_covered_entry, fill = ins_covered_entry)) +
+  geom_bar(width = 0.5, col = "black") + 
+  theme_classic() +
+  labs(title = "Client Insurance Status",
+       subtitle = "When entering the shelter",
+       x = "Covered by Insurance",
+       y = "Count") + 
+  scale_fill_discrete(name = "Covered by insurance")
+# ggsave("Client_insurace.png", width = 6, height = 4)
+```
+As we can see, more clients _DO NOT_ have any type of insurance when entering the shelter.
+
+#### What types of insurance did the insured clients have?
+``` {r ins_type}
+ins_type_df <- total_df %>% 
+  select(ins_type_entry) %>%
+  filter(ins_type_entry != "Uncovered")
+
+ggplot(ins_type_df, aes(x = ins_type_entry, fill = ins_type_entry)) +
+  geom_bar(width = 0.5, col = "black") +
+  theme_classic() + 
+  labs(title = "Types of Insurance of Insured Clients",
+       subtitle = "When entering the shelter",
+       x = "Insurance Type",
+       y = "Count") +
+  scale_fill_discrete(name = "Insurance Type",
+                      labels = c("Employer - Provided Health Insurance" = "1: Employer - Provided Health Insurance",
+                              "MEDICAID" = "2: MEDICAID",
+                              "MEDICARE" = "3: MEDICARE",
+                              "Other" = "4: Other",
+                              "Private Pay Health Insurance" = "5: Private Pay Health Insurance",
+                              "State Children's Health Insurance Program" = "6: State Children's Health Insurance Program",
+                              "State Health Insurance for Adults" = "7: State Health Insurance for Adults",
+                              "Veteran's Administration (VA) Medical Services" = "8: Veteran's Administration (VA) Medical Services"
+                              )) +
+  scale_x_discrete(labels = c("Employer - Provided Health Insurance" = "1",
+                              "MEDICAID" = "2",
+                              "MEDICARE" = "3",
+                              "Other" = "4",
+                              "Private Pay Health Insurance" = "5",
+                              "State Children's Health Insurance Program" = "6",
+                              "State Health Insurance for Adults" = "7",
+                              "Veteran's Administration (VA) Medical Services" = "8"
+                              ))
+# ggsave("Client_insurance_type.png", width = 6, height = 4)
+```
+We can see that most insured people have MEDICAID, the low-cost insurance program for the needy (people with low incomes, etc.). A certain amount of clients also have the VA Medical Services.
+
+#### What demographic factors contribute to higher chances of having insurance coverages?
+To give an answer, we first have a look at the summary of the proportion of insured clients for each combination of gender, race, ethnicity, and veteran status. This will allow us to determine the method used to estimate the proportions of the insured people among each category.
 ```{r baseline_insurance_1}
 baseline_df <- total_df %>%
   select(age_at_entry, gender, race, ethnicity, veteran_status, ins_covered_entry, ins_type_entry) 
 
+# The frequency table
+ins_pct_df <- baseline_df %>%
+  group_by(gender, race, ethnicity, veteran_status, ins_covered_entry) %>%
+  summarise(count = n()) %>%
+  mutate(Coverage_Percentage = paste0(round(100 * count/sum(count), digit = 2), "%")) %>%
+  filter(ins_covered_entry == "Yes") %>%
+  select(gender, race, ethnicity, veteran_status, count, Coverage_Percentage) %>%
+  rename(Gender = gender,
+         Race = race, 
+         Ethnicity = ethnicity,
+         Veteran_Status = veteran_status,
+         Count = count)
 
-
-# We plot the histrograms for the distribution of ages of people entering the shelter
-ggplot(baseline_df, aes(x = ins_covered_entry, fill = ins_covered_entry)) +
-  geom_bar(width = 0.5, col = "black", alpha = 0.65) +
-  facet_grid(.~gender) +
-  theme_classic()
+kable(ins_pct_df, format = "html", caption = "Table 5: Client Insurance Coverage by Demographic Group") %>%
+  kable_styling(full_width = FALSE)
 
 ```
 
-_(To be continued) I will also make the same kind of plots and a table that shows the proportion of insured people for each demographic variable._
+This summary table displays several combinations of categories that are more likely to have uninsured people. For some demographic groups, one demographic factor can drive the proportion of insured clients dramatically, such as `veteran status` for black males.
 
-## What Kind of Coverage Do People Who Had Insurance Coverage Had?
-_(To be continued) I will use histograms to show this._
+Intuitively, we would want to use logistic regression to estimate the change of odds of being insured (which then can be translated into probabilities) by each demographic category as compared to a baseline group (for example, the change in odds of being insured for being white vs. black, being a veteran vs. non-veteran).
 
-## Who Are More Likely to Be Insured/Uninsured?
-_(To be continued) I will use a baseline logit (logistic) regression model to determine the effects of certain demographic variables on the odds of being insured._ 
+However, we see that several categories _do not_ have a single representative client and many other have only a few. This is an indicator that any attempts with parametric modeling methods will likely go awry due to the low sample sizes. Thus, to perform an analysis on the full data, we need to invoke exact methods or more robust non-parametric methods to classify the insurance status. But R 3.6.1 does not support the recommended package for the exact logistic regression. Due to time constraints, we need to simplfy the analysis.
 
-## Are More People Getting Insured When They Left Tbe Shelter?
-_(To be continued) I will use histograms to show this._
+To do so, we stick with the baseline logistic regression model and reduce the data to categories with enough (preferably $>30$) representatives. This limits us to only Male and Female in genders, Black and White in races, and Non-Hispanic in ethnicity, and all answers marked `Unknown` are removed. We will also put `age` in the analysis.
+
+In the model, we choose _non-Hispanic/non-Latino black female with non-veteran status_ as the reference group. The formula is specified in R by 
+```
+ins_covered_entry ~ age_at_entry + gender + race + veteran_status
+```
+The coefficients fitted model is shown below:
+
+``` {r log_reg}
+reg_df <- total_df %>%
+  select(age_at_entry, gender, race, ethnicity, veteran_status, ins_covered_entry) %>%
+  filter(gender %in% c("Male", "Female")) %>%
+  filter(race %in% c("Black", "White")) %>%
+  filter(ethnicity %in% "Non-His/Non-Lat") %>%
+  filter(veteran_status != "Unknown") %>%
+  select(-ethnicity)
+
+fit <- glm(ins_covered_entry ~ age_at_entry + gender + race + veteran_status,
+           family = "binomial", data = reg_df)
+
+fit$coefficients
+```
+
+Thus we see that: 
+
+* Being one year older increases the odds of being insured and females are more likely to be insured than males.
+* Black people are more likely to be insured than white people at the UMD. 
+* Veteran status also leads to higher odds of being insured.
+
+#### (Additional Study) Are more people getting insured when they left the shelter?
+``` {r more_insured}
+more_ins_df <- total_df %>%
+  select(id, ins_covered_entry, ins_type_entry, ins_covered_exit, ins_type_exit) %>%
+  filter(ins_covered_entry == "No") %>%
+  filter(ins_covered_exit == "Yes")
+
+kable(more_ins_df, format = "html", caption = "Table 6: Records or Clients Who Gained Coverage During Their Stay") %>% 
+  kable_styling(full_width = FALSE)
+```
+We found 13 people got their coverage as they exited the shelter. However, considering that there are nearly 1000 people without coverage as they entered the shelter, this is rather a small proportion.
+
+## Conclusions And Further Steps
+The key findings of the study are: 
+
+1. Most clients of the UMD are _uninsured_.
+2. The insured people use a variety of insurance providers. But the major providers are MEDICAID, MEDICARE, and VA Health Services.
+3. The logistic regression model identifies characteristics that can lead to higher/lower chances of a client being insured:
+    * Being one year older increases the odds of being insured and females are more likely to be insured than males.
+    * Black people are more likely to be insured than white people at the UMD. 
+    * Veteran status also leads to higher odds of being insured.
+    
+Some cautions and future directions are:
+
+* Due to reduced data, results are not very generalizable.
+* In the future, can further explore the associations between specific variables and the types of insurance received.
+* If the UMD expanded its efforts in helping its clients with getting insured, this could be a good reference to target the specifically needy clients.
 
